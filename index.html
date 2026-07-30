@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nest Stream Controller</title>
+    <style>
+        :root {
+            /* Yellow & Black Theme */
+            --bg-body: #0d0d0d;        /* Deep black background */
+            --bg-surface: #1a1a1a;     /* Dark gray for widgets/cards */
+            --text-primary: #ffffff;   /* Pure white for readability */
+            --text-secondary: #a0a0a0; /* Light gray for secondary text */
+            --accent: #ffcc00;         /* Vibrant Yellow */
+            --accent-hover: #e6b800;   /* Slightly darker yellow for hover */
+            --danger: #ff4d4d;         /* Red for stop/danger */
+            --border: #333333;         /* Subtle dark borders */
+            --shadow-sm: 0 4px 6px rgba(0,0,0,0.3);
+            --shadow-lg: 0 10px 30px rgba(0,0,0,0.6);
+            --radius: 16px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            padding: 2vh 5vw;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Top Header Navigation */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0 30px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+
+        h2 { font-weight: 700; letter-spacing: 0.5px; color: var(--accent); }
+
+        .connection-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: #000000;
+            padding: 8px 12px;
+            border-radius: 30px;
+            border: 1px solid var(--border);
+        }
+
+        .connection-bar input {
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 14px;
+            width: 130px;
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge::before { content: ""; display: block; width: 8px; height: 8px; border-radius: 50%; }
+        .badge-online { background: rgba(255, 204, 0, 0.15); color: var(--accent); border: 1px solid var(--accent); }
+        .badge-online::before { background: var(--accent); }
+        .badge-offline { background: rgba(255, 77, 77, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+        .badge-offline::before { background: var(--danger); }
+
+        /* Main Dashboard Grid */
+        .layout {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 850px) {
+            .layout { grid-template-columns: 1fr; }
+        }
+
+        .widget {
+            background: var(--bg-surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+        }
+
+        .widget-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Common Button Styles */
+        button {
+            border: none;
+            border-radius: 30px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary { background: var(--accent); color: #000; padding: 12px 24px; }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255, 204, 0, 0.3); }
+        .btn-secondary { background: #2a2a2a; color: var(--text-primary); padding: 12px 24px; border: 1px solid #444; }
+        .btn-secondary:hover { background: #333; }
+        .btn-danger { background: #2a0000; color: var(--danger); padding: 12px 24px; border: 1px solid var(--danger); }
+        .btn-danger:hover { background: var(--danger); color: #fff; }
+
+        /* The Player (Remote Control) */
+        .player-widget {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .now-playing-art {
+            width: 260px;
+            height: 260px;
+            border-radius: 12px;
+            object-fit: cover;
+            margin-bottom: 24px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.8);
+            background: #0d0d0d;
+            border: 2px solid var(--border);
+            transition: opacity 0.3s;
+        }
+
+        #npTitle { font-size: 24px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary); }
+        #npArtist { font-size: 16px; color: var(--accent); margin-bottom: 24px; }
+
+        .transport-controls {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        /* Volume Slider */
+        .volume-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: #000000;
+            padding: 16px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .volume-container input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            outline: none;
+        }
+        .volume-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px; height: 18px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+        }
+
+        /* Search & Queue Layout */
+        .explorer-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Search Bar */
+        .search-box {
+            display: flex;
+            gap: 12px;
+            background: #000000;
+            padding: 12px;
+            border-radius: 30px;
+            border: 1px solid var(--accent);
+            box-shadow: 0 0 15px rgba(255, 204, 0, 0.1);
+        }
+
+        .search-box input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            padding-left: 16px;
+            background: transparent;
+            color: var(--text-primary);
+        }
+
+        /* List Items (Search Results & Queue) */
+        .track-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .track-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #000000;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: transform 0.1s ease, border-color 0.2s ease;
+        }
+        .track-item:hover {
+            transform: translateX(4px);
+            border-color: var(--accent);
+        }
+
+        .track-info { display: flex; align-items: center; gap: 16px; }
+        .track-thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; border: 1px solid #333; }
+        .track-details h4 { font-size: 16px; color: var(--text-primary); margin-bottom: 4px; font-weight: 600; }
+        .track-details p { font-size: 13px; color: var(--text-secondary); }
+
+        .btn-add {
+            background: transparent;
+            color: var(--accent);
+            border: 2px solid var(--accent);
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+        .btn-add:hover { background: var(--accent); color: #000; }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 30px;
+            font-style: italic;
+            background: #000;
+            border-radius: 12px;
+            border: 1px dashed var(--border);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2>NEST STREAMER</h2>
+        <div class="connection-bar">
+            <span id="statusBadge" class="badge badge-offline">Offline</span>
+            <input type="text" id="nestIp" value="192.168.XX.XX" placeholder="IP Address">
+            <button class="btn-primary" onclick="connectDevice()" style="padding: 6px 16px; font-size: 12px;">Connect</button>
+        </div>
+    </header>
+
+    <div class="layout">
+        
+        <!-- COLUMN 1: The Remote / Player Widget -->
+        <div class="widget player-widget">
+            <img id="npArt" class="now-playing-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' fill='%231a1a1a'><rect width='100%' height='100%'/></svg>" alt="Artwork">
+            <h3 id="npTitle">SYSTEM READY</h3>
+            <p id="npArtist">Awaiting input...</p>
+
+            <div class="transport-controls">
+                <button id="toggleBtn" class="btn-primary" onclick="togglePlayPause()" style="flex: 1;">Pause</button>
+                <button class="btn-secondary" onclick="skipTrack()">Skip</button>
+                <button class="btn-danger" onclick="stopPlayback()">Stop</button>
+            </div>
+
+            <div class="volume-container">
+                <span style="font-size: 18px;">🔉</span>
+                <input type="range" id="volSlider" min="0" max="1" step="0.05" onchange="setVolume(this.value)">
+                <span style="font-size: 18px;">🔊</span>
+            </div>
+        </div>
+
+        <!-- COLUMN 2: Search & Queue -->
+        <div class="explorer-section">
+            
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search database for audio..." onkeypress="handleKeyPress(event)">
+                <button class="btn-primary" onclick="searchMusic()">Search</button>
+            </div>
+
+            <!-- Search Results -->
+            <div id="searchResults" class="track-list"></div>
+
+            <!-- Queue -->
+            <div class="widget">
+                <div class="widget-title">Playback Queue</div>
+                <div id="queueList" class="track-list">
+                    <div class="empty-state">Queue is currently empty</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let isPlaying = false;
+
+        async function pollStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                // Connection badge
+                const badge = document.getElementById('statusBadge');
+                if (data.connected) {
+                    badge.className = 'badge badge-online';
+                    badge.innerText = `LINKED: ${data.device_name || 'Nest'}`;
+                } else {
+                    badge.className = 'badge badge-offline';
+                    badge.innerText = 'OFFLINE';
+                }
+
+                // Now playing update
+                isPlaying = data.is_playing;
+                document.getElementById('toggleBtn').innerText = isPlaying ? 'Pause' : 'Resume';
+
+                if (data.current_track) {
+                    document.getElementById('npTitle').innerText = data.current_track.title;
+                    document.getElementById('npArtist').innerText = data.current_track.artist;
+                    if (data.current_track.thumbnail_url) {
+                        document.getElementById('npArt').src = data.current_track.thumbnail_url;
+                    }
+                } else {
+                    document.getElementById('npTitle').innerText = 'SYSTEM READY';
+                    document.getElementById('npArtist').innerText = 'Awaiting input...';
+                    document.getElementById('npArt').src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' fill='%231a1a1a'><rect width='100%' height='100%'/></svg>";
+                }
+
+                // Volume slider sync
+                document.getElementById('volSlider').value = data.volume;
+
+                // Queue update
+                const qContainer = document.getElementById('queueList');
+                if (data.queue.length === 0) {
+                    qContainer.innerHTML = '<div class="empty-state">Queue is currently empty</div>';
+                } else {
+                    qContainer.innerHTML = data.queue.map(item => `
+                        <div class="track-item">
+                            <div class="track-info">
+                                <img class="track-thumb" src="${item.thumbnail_url || ''}" alt="art">
+                                <div class="track-details">
+                                    <h4>${item.title}</h4>
+                                    <p>${item.artist}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+            } catch (err) {
+                console.error("Status update error:", err);
+            }
+        }
+
+        async function connectDevice() {
+            const ip = document.getElementById('nestIp').value;
+            await fetch('/api/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip_address: ip })
+            });
+            pollStatus();
+        }
+
+        async function searchMusic() {
+            const query = document.getElementById('searchInput').value;
+            if (!query) return;
+            
+            // Show loading state
+            document.getElementById('searchResults').innerHTML = '<div class="empty-state" style="color: var(--accent); border-color: var(--accent);">Scanning database...</div>';
+
+            const res = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
+            });
+            const data = await res.json();
+
+            const container = document.getElementById('searchResults');
+            
+            if (data.results.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="color: var(--danger); border-color: var(--danger);">No records found.</div>';
+                return;
+            }
+
+            container.innerHTML = data.results.map(track => `
+                <div class="track-item">
+                    <div class="track-info">
+                        <img class="track-thumb" src="${track.thumbnail_url || ''}" alt="art">
+                        <div class="track-details">
+                            <h4>${track.title}</h4>
+                            <p>${track.artist}</p>
+                        </div>
+                    </div>
+                    <button class="btn-add" onclick='enqueueTrack(${JSON.stringify(track)})'>+ ENQUEUE</button>
+                </div>
+            `).join('');
+        }
+
+        async function enqueueTrack(track) {
+            await fetch('/api/queue/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(track)
+            });
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('searchInput').value = '';
+            pollStatus();
+        }
+
+        async function togglePlayPause() {
+            const endpoint = isPlaying ? '/api/control/pause' : '/api/control/resume';
+            await fetch(endpoint, { method: 'POST' });
+            pollStatus();
+        }
+
+        async function skipTrack() {
+            await fetch('/api/control/skip', { method: 'POST' });
+            pollStatus();
+        }
+
+        async function stopPlayback() {
+            await fetch('/api/control/stop', { method: 'POST' });
+            pollStatus();
+        }
+
+        async function setVolume(val) {
+            await fetch('/api/control/volume', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ level: parseFloat(val) })
+            });
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') searchMusic();
+        }
+
+        setInterval(pollStatus, 2000);
+        pollStatus();
+    </script>
+</body>
+</html>

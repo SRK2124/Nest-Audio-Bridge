@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  nest-streamer:
+    build: .
+    container_name: nest-music-player
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
